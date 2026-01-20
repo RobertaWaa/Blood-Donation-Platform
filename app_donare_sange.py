@@ -196,13 +196,13 @@ class BloodDonationApp:
             rows = cursor.fetchall()
         
             # DEBUG: Afișează câte rânduri și primul rând
-            print(f"DEBUG - Rânduri returnate din SQL: {len(rows)}")
-            if rows:
-                print(f"DEBUG - Primul rând RAW: {rows[0]}")
-                print(f"DEBUG - Tip prim rând: {type(rows[0])}")
-                print(f"DEBUG - Lungime prim rând: {len(rows[0])}")
-                for i, val in enumerate(rows[0]):
-                    print(f"  Col {i}: {repr(val)} (tip: {type(val)})")
+            # print(f"DEBUG - Rânduri returnate din SQL: {len(rows)}")
+            # if rows:
+            #     print(f"DEBUG - Primul rând RAW: {rows[0]}")
+            #     print(f"DEBUG - Tip prim rând: {type(rows[0])}")
+            #     print(f"DEBUG - Lungime prim rând: {len(rows[0])}")
+            #     for i, val in enumerate(rows[0]):
+            #         print(f"  Col {i}: {repr(val)} (tip: {type(val)})")
         
             # INSERARE CORECTĂ ÎN TREEVIEW
             for row in rows:
@@ -217,8 +217,8 @@ class BloodDonationApp:
                         row_values.append(str(value))
             
                 # DEBUG pentru primul rând
-                if len(row_values) > 0 and row_values[0] == '5':
-                    print(f"DEBUG - Inserare rând Dumitrescu: {row_values}")
+                # if len(row_values) > 0 and row_values[0] == '5':
+                #     print(f"DEBUG - Inserare rând Dumitrescu: {row_values}")
             
                 # Inserăm în Treeview
                 self.donor_tree.insert('', tk.END, values=row_values)
@@ -367,11 +367,11 @@ class BloodDonationApp:
         values = item['values']
     
         # DEBUG: Afișează ce valori primești
-        print(f"DEBUG - Valori selectate: {values}")
-        print(f"DEBUG - Tip valori: {type(values)}")
-        print(f"DEBUG - Lungime: {len(values)}")
-        for i, val in enumerate(values):
-            print(f"  Col {i}: {repr(val)} (tip: {type(val)})")
+        # print(f"DEBUG - Valori selectate: {values}")
+        # print(f"DEBUG - Tip valori: {type(values)}")
+        # print(f"DEBUG - Lungime: {len(values)}")
+        # for i, val in enumerate(values):
+        #     print(f"  Col {i}: {repr(val)} (tip: {type(val)})")
     
         if not values:
             messagebox.showerror("Eroare", "Nu s-au găsit date pentru donatorul selectat!")
@@ -379,7 +379,7 @@ class BloodDonationApp:
     
         # PRIMA valoare este ID-ul
         donor_id = values[0]
-        print(f"DEBUG - ID extras: {donor_id}")
+        # print(f"DEBUG - ID extras: {donor_id}")
     
         # Verifică dacă ID-ul este valid
         if donor_id is None:
@@ -389,7 +389,7 @@ class BloodDonationApp:
         # Încearcă conversia la int
         try:
             donor_id_int = int(donor_id)
-            print(f"DEBUG - ID convertit: {donor_id_int}")
+            # print(f"DEBUG - ID convertit: {donor_id_int}")
         except (ValueError, TypeError) as e:
             messagebox.showerror("Eroare", f"ID invalid pentru donator: {donor_id}\nEroare: {str(e)}")
             return
