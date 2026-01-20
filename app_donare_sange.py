@@ -164,15 +164,15 @@ class BloodDonationApp:
         self.load_donors()
     
     def load_donors(self, search_term=None):
-        """incarca donatorii in tabel."""
-        # sterge datele existente
+        """Încarcă donatorii în tabel."""
+        # Șterge datele existente
         for item in self.donor_tree.get_children():
             self.donor_tree.delete(item)
-        
+    
         conn = get_connection()
         if conn is None:
             return
-        
+    
         cursor = conn.cursor()
         try:
             if search_term:
@@ -192,16 +192,44 @@ class BloodDonationApp:
                     FROM Donatori 
                     ORDER BY Nume, Prenume
                 """)
-            
+        
             rows = cursor.fetchall()
+        
+            # DEBUG: Afișează câte rânduri și primul rând
+            print(f"DEBUG - Rânduri returnate din SQL: {len(rows)}")
+            if rows:
+                print(f"DEBUG - Primul rând RAW: {rows[0]}")
+                print(f"DEBUG - Tip prim rând: {type(rows[0])}")
+                print(f"DEBUG - Lungime prim rând: {len(rows[0])}")
+                for i, val in enumerate(rows[0]):
+                    print(f"  Col {i}: {repr(val)} (tip: {type(val)})")
+        
+            # INSERARE CORECTĂ ÎN TREEVIEW
             for row in rows:
-                self.donor_tree.insert('', tk.END, values=row)
+                # Convertim fiecare rând într-o listă simplă
+                # row este un tuple de la cursor.fetchall()
+                row_values = []
+                for value in row:
+                    # Convertim None la string gol
+                    if value is None:
+                        row_values.append('')
+                    else:
+                        row_values.append(str(value))
             
-            status = f"Afisati {len(rows)} donatori" + (" (filtrat)" if search_term else "")
+                # DEBUG pentru primul rând
+                if len(row_values) > 0 and row_values[0] == '5':
+                    print(f"DEBUG - Inserare rând Dumitrescu: {row_values}")
+            
+                # Inserăm în Treeview
+                self.donor_tree.insert('', tk.END, values=row_values)
+        
+            status = f"Afișați {len(rows)} donatori" + (" (filtrat)" if search_term else "")
             self.show_status(status)
-            
+        
         except Exception as e:
-            messagebox.showerror("Eroare", f"Eroare la incarcarea donatorilor:\n{str(e)}")
+            messagebox.showerror("Eroare", f"Eroare la încărcarea donatorilor:\n{str(e)}")
+            import traceback
+            traceback.print_exc()
         finally:
             cursor.close()
             conn.close()
@@ -329,17 +357,44 @@ class BloodDonationApp:
             conn.close()
     
     def edit_donor(self):
-        """Editeaza donatorul selectat."""
+        """Editează donatorul selectat."""
         selection = self.donor_tree.selection()
         if not selection:
-            messagebox.showwarning("Selectie", "Selecteaza un donator din lista!")
+            messagebox.showwarning("Selecție", "Selectează un donator din listă!")
             return
-        
+    
         item = self.donor_tree.item(selection[0])
-        donor_id = item['values'][0]
-        
+        values = item['values']
+    
+        # DEBUG: Afișează ce valori primești
+        print(f"DEBUG - Valori selectate: {values}")
+        print(f"DEBUG - Tip valori: {type(values)}")
+        print(f"DEBUG - Lungime: {len(values)}")
+        for i, val in enumerate(values):
+            print(f"  Col {i}: {repr(val)} (tip: {type(val)})")
+    
+        if not values:
+            messagebox.showerror("Eroare", "Nu s-au găsit date pentru donatorul selectat!")
+            return
+    
+        # PRIMA valoare este ID-ul
+        donor_id = values[0]
+        print(f"DEBUG - ID extras: {donor_id}")
+    
+        # Verifică dacă ID-ul este valid
+        if donor_id is None:
+            messagebox.showerror("Eroare", "ID-ul donatorului este NULL!")
+            return
+    
+        # Încearcă conversia la int
+        try:
+            donor_id_int = int(donor_id)
+            print(f"DEBUG - ID convertit: {donor_id_int}")
+        except (ValueError, TypeError) as e:
+            messagebox.showerror("Eroare", f"ID invalid pentru donator: {donor_id}\nEroare: {str(e)}")
+            return
         # Deschide fereastra de editare
-        self.edit_donor_window(donor_id)
+        self.edit_donor_window(donor_id_int)
     
     def edit_donor_window(self, donor_id):
         """Fereastra pentru editare donator."""
