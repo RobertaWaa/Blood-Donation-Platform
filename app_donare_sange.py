@@ -2045,38 +2045,49 @@ class BloodDonationApp:
         finally:
             conn.close()
     
-    # ==================== RAPOARTE ====================
+    #RAPOARTE
     def show_reports(self):
         """Afiseaza interfata pentru rapoarte."""
         self.clear_content()
-        
+    
         title = tk.Label(self.content_frame, text="RAPOARTE SI STATISTICI", 
                         font=('Arial', 18, 'bold'), bg=self.color_bg, fg=self.color_fg)
         title.pack(pady=(0, 20))
-        
+    
         # Frame pentru butoane de rapoarte
         reports_frame = tk.Frame(self.content_frame, bg=self.color_bg)
         reports_frame.pack(fill=tk.BOTH, expand=True, padx=50, pady=20)
-        
+    
         # Grid 3x3 cu butoane pentru rapoarte
         reports = [
-            ("📊 Donatori pe Grupe Sanguine", self.report_blood_groups),
-            ("📈 Donatii pe Luna", self.report_donations_monthly),
-            ("🏥 Donatori cu Boli", self.report_donors_with_diseases),
-            ("🩸 Analize Anormale", self.report_abnormal_analyses),
-            ("📅 Programari Viitoare", self.report_upcoming_appointments),
-            ("💉 Top Donatori", self.report_top_donors),
-            ("⚠️ Stoc Critic", self.report_critical_stock),
-            ("📋 Donatori Eligibili", self.report_eligible_donors),
-            ("🔍 Cautare Avansata", self.advanced_search_window)
-        ]
+            #INTEROGARI SIMPLE (6)
+            ("📊 Donatori pe Grupe", self.report_blood_groups),           # SIMPLU
+            ("🏥 Donatori cu Boli", self.report_donors_with_diseases),    # SIMPLU
+            ("🩸 Analize Anormale", self.report_abnormal_analyses),       # SIMPLU
+            ("📅 Programari Viitoare", self.report_upcoming_appointments), # SIMPLU
+            ("💉 Top Donatori", self.report_top_donors),                  # SIMPLU
+            ("✅ Donatori Eligibili", self.report_eligible_donors),       # SIMPLU
         
+            #INTEROGARI COMPLEXE (4)
+            ("📈 Donatii pe Luna", self.report_donations_monthly),        # COMPLEX
+            ("⚠️ Stoc Critic", self.report_critical_stock),               # COMPLEX
+            ("📊 Stat. Eligibilitate", self.report_eligibility_stats),    # COMPLEX
+            ("🚨 Donatori Risc Ridicat", self.report_high_risk_donors)    # COMPLEX
+        ]
+    
         for i, (text, command) in enumerate(reports):
             row, col = divmod(i, 3)
             btn = ttk.Button(reports_frame, text=text, command=command, width=25)
             btn.grid(row=row, column=col, padx=10, pady=10, sticky='nsew')
             reports_frame.grid_rowconfigure(row, weight=1)
             reports_frame.grid_columnconfigure(col, weight=1)
+    
+        # Adauga un label explicativ
+        info_frame = tk.Frame(self.content_frame, bg=self.color_bg)
+        info_frame.pack(pady=10)
+    
+        tk.Label(info_frame, text="", 
+                 font=('Arial', 9), bg=self.color_bg, fg='#cc0000').pack()
     
     def report_blood_groups(self):
         """Raport: Donatori pe grupe sanguine."""
@@ -2230,17 +2241,33 @@ class BloodDonationApp:
         conn = get_connection()
         if conn is None:
             return
-        
+    
         try:
             df = pd.read_sql("""
-                SELECT GrupaSanguina, SUM(Cantitate) as CantitateTotala
-                FROM StocSange
-                WHERE DataExpirare IS NULL OR DataExpirare > GETDATE()
-                GROUP BY GrupaSanguina
-                HAVING SUM(Cantitate) < 500
+                WITH GrupeSanguine AS (
+                    SELECT 'A+' as Grupa UNION SELECT 'A-' UNION SELECT 'B+' 
+                    UNION SELECT 'B-' UNION SELECT 'AB+' UNION SELECT 'AB-' 
+                    UNION SELECT '0+' UNION SELECT '0-'
+                ),
+                StocValabil AS (
+                    SELECT GrupaSanguina, SUM(Cantitate) as CantitateTotala
+                    FROM StocSange
+                    WHERE DataExpirare IS NULL OR DataExpirare > GETDATE()
+                    GROUP BY GrupaSanguina
+                )
+                SELECT gs.Grupa as GrupaSanguina, 
+                       COALESCE(sv.CantitateTotala, 0) as CantitateTotala,
+                       CASE 
+                         WHEN COALESCE(sv.CantitateTotala, 0) < 200 THEN 'CRITIC'
+                         WHEN COALESCE(sv.CantitateTotala, 0) < 500 THEN 'BAJ'
+                         ELSE 'OK'
+                       END as Stare
+                FROM GrupeSanguine gs
+                LEFT JOIN StocValabil sv ON gs.Grupa = sv.GrupaSanguina
+                WHERE COALESCE(sv.CantitateTotala, 0) < 500
                 ORDER BY CantitateTotala
             """, conn)
-            
+        
             self.show_report_window("Stoc Critic (sub 500ml)", df)
         except Exception as e:
             messagebox.showerror("Eroare", f"Eroare la generare raport:\n{str(e)}")
@@ -2270,123 +2297,115 @@ class BloodDonationApp:
             messagebox.showerror("Eroare", f"Eroare la generare raport:\n{str(e)}")
         finally:
             conn.close()
+
+    def report_eligibility_stats(self):
+        """Raport: Statistici eligibilitate cu CASE."""
+        conn = get_connection()
+        if conn is None:
+            return
     
-    def advanced_search_window(self):
-        """Fereastra pentru cautare avansata."""
-        window = tk.Toplevel(self.root)
-        window.title("Cautare Avansata")
-        window.geometry("600x400")
-        window.configure(bg=self.color_bg)
-        window.grab_set()
-        
-        tk.Label(window, text="CAUTARE AVANSATA", font=('Arial', 16, 'bold'), 
-                bg=self.color_bg, fg=self.color_fg).pack(pady=20)
-        
-        form_frame = tk.Frame(window, bg=self.color_bg)
-        form_frame.pack(padx=40, pady=10)
-        
-        tk.Label(form_frame, text="Cauta donatori dupa:", bg=self.color_bg, fg=self.color_fg).pack(anchor=tk.W, pady=5)
-        
-        # Optiuni de cautare
-        search_options = [
-            ("Grupa sanguina:", "blood_group"),
-            ("Oras din adresa:", "city"),
-            ("Varsta minima:", "min_age"),
-            ("Varsta maxima:", "max_age"),
-            ("Data inregistrarii de la:", "reg_from"),
-            ("Data inregistrarii pana la:", "reg_to")
-        ]
-        
-        self.search_vars = {}
-        for i, (label, key) in enumerate(search_options):
-            tk.Label(form_frame, text=label, bg=self.color_bg, fg=self.color_fg).grid(row=i, column=0, sticky=tk.W, pady=5)
-            entry = ttk.Entry(form_frame, width=30)
-            entry.grid(row=i, column=1, pady=5, padx=10)
-            self.search_vars[key] = entry
-        
-        # Grupa sanguina special (combobox)
-        blood_groups = ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', '0+', '0-']
-        blood_combo = ttk.Combobox(form_frame, values=blood_groups, width=27, state='readonly')
-        blood_combo.grid(row=0, column=1, pady=5, padx=10)
-        blood_combo.current(0)
-        self.search_vars['blood_group'] = blood_combo
-        
-        def perform_search():
-            conditions = []
-            params = []
-            
-            # Grupa sanguina
-            blood_group = self.search_vars['blood_group'].get()
-            if blood_group:
-                conditions.append("GrupaSanguina = ?")
-                params.append(blood_group)
-            
-            # Oras
-            city = self.search_vars['city'].get()
-            if city:
-                conditions.append("Adresa LIKE ?")
-                params.append(f'%{city}%')
-            
-            # Varsta
-            try:
-                min_age = self.search_vars['min_age'].get()
-                if min_age:
-                    conditions.append("DATEDIFF(YEAR, DataNasterii, GETDATE()) >= ?")
-                    params.append(int(min_age))
-                
-                max_age = self.search_vars['max_age'].get()
-                if max_age:
-                    conditions.append("DATEDIFF(YEAR, DataNasterii, GETDATE()) <= ?")
-                    params.append(int(max_age))
-            except ValueError:
-                messagebox.showerror("Eroare", "Varsta trebuie sa fie numar!")
-                return
-            
-            # Data inregistrarii
-            reg_from = self.search_vars['reg_from'].get()
-            if reg_from:
-                conditions.append("DataInregistrarii >= ?")
-                params.append(reg_from)
-            
-            reg_to = self.search_vars['reg_to'].get()
-            if reg_to:
-                conditions.append("DataInregistrarii <= ?")
-                params.append(reg_to + " 23:59:59")
-            
-            if not conditions:
-                messagebox.showwarning("Validare", "Completeaza cel putin un criteriu!")
-                return
-            
-            where_clause = " AND ".join(conditions)
-            query = f"""
-                SELECT IDDonator, Nume, Prenume, CNP, Gen, GrupaSanguina, 
-                       CASE WHEN EsteEligibil = 1 THEN 'DA' ELSE 'NU' END as Eligibil,
-                       Telefon, Email, Adresa, DataInregistrarii
+        try:
+            df = pd.read_sql("""
+                SELECT 
+                    GrupaSanguina,
+                    COUNT(*) as TotalDonatori,
+                    SUM(CASE WHEN EsteEligibil = 1 THEN 1 ELSE 0 END) as Eligibili,
+                    SUM(CASE WHEN EsteEligibil = 0 THEN 1 ELSE 0 END) as Neeligibili,
+                    CONCAT(
+                        FORMAT(
+                            CAST(SUM(CASE WHEN EsteEligibil = 1 THEN 1.0 ELSE 0 END) / 
+                            NULLIF(COUNT(*), 0) * 100 as DECIMAL(5,2)), 
+                        'N2'), '%') as ProcentEligibili
                 FROM Donatori
-                WHERE {where_clause}
-                ORDER BY Nume, Prenume
-            """
-            
-            conn = get_connection()
-            if conn is None:
-                return
-            
-            try:
-                df = pd.read_sql(query, conn, params=params)
-                if len(df) == 0:
-                    messagebox.showinfo("Rezultate", "Nu s-au gasit donatori care sa indeplineasca criteriile!")
-                else:
-                    self.show_report_window(f"Rezultate cautare ({len(df)} donatori)", df)
-            except Exception as e:
-                messagebox.showerror("Eroare", f"Eroare la cautare:\n{str(e)}")
-            finally:
-                conn.close()
+                GROUP BY GrupaSanguina
+                ORDER BY GrupaSanguina
+            """, conn)
         
-        button_frame = tk.Frame(window, bg=self.color_bg)
-        button_frame.pack(pady=20)
+            self.show_report_window("Statistici Eligibilitate pe Grupe", df)
+        except Exception as e:
+            messagebox.showerror("Eroare", f"Eroare la generare raport:\n{str(e)}")
+        finally:
+            conn.close()
+    
+    def report_high_risk_donors(self):
+        """Raport complex: Donatori cu risc ridicat (mai multe probleme combinate)."""
+        conn = get_connection()
+        if conn is None:
+            return
+    
+        try:
+            df = pd.read_sql("""
+                -- Interogare complexa cu multiple subcereri si conditii
+                SELECT 
+                    d.Nume + ' ' + d.Prenume as Donator,
+                    d.GrupaSanguina,
+                    d.DataNasterii,
+                
+                    -- Subcerere pentru numarul de boli
+                    (SELECT COUNT(*) 
+                     FROM DonatoriBoli db 
+                     WHERE db.IDDonator = d.IDDonator) as NrBoli,
+                
+                    -- Subcerere pentru analize anormale
+                    (SELECT COUNT(*) 
+                     FROM RezultateAnalize ra 
+                     WHERE ra.IDDonator = d.IDDonator 
+                       AND ra.EsteInLimitaNormala = 0) as NrAnalizeAnormale,
+                
+                    -- Subcerere pentru data ultimei donatii
+                    (SELECT MAX(DataDonatie) 
+                     FROM Donatii dn 
+                     WHERE dn.IDDonator = d.IDDonator) as UltimaDonatie,
+                
+                    -- Calcul varsta
+                    DATEDIFF(YEAR, d.DataNasterii, GETDATE()) as Varsta,
+                
+                    -- Calcul luni de la ultima donatie
+                    CASE 
+                        WHEN (SELECT MAX(DataDonatie) FROM Donatii dn WHERE dn.IDDonator = d.IDDonator) IS NULL 
+                        THEN 999
+                        ELSE DATEDIFF(MONTH, 
+                             (SELECT MAX(DataDonatie) FROM Donatii dn WHERE dn.IDDonator = d.IDDonator), 
+                             GETDATE())
+                    END as LuniDeLaUltimaDonatie,
+                
+                    -- Scor de risc (calculat)
+                    CASE 
+                        WHEN d.EsteEligibil = 0 THEN 3
+                        ELSE 0
+                    END +
+                    (SELECT COUNT(*) FROM DonatoriBoli db WHERE db.IDDonator = d.IDDonator) * 2 +
+                    (SELECT COUNT(*) FROM RezultateAnalize ra WHERE ra.IDDonator = d.IDDonator AND ra.EsteInLimitaNormala = 0) +
+                    CASE 
+                        WHEN (SELECT MAX(DataDonatie) FROM Donatii dn WHERE dn.IDDonator = d.IDDonator) IS NULL 
+                        THEN 1
+                        WHEN DATEDIFF(MONTH, (SELECT MAX(DataDonatie) FROM Donatii dn WHERE dn.IDDonator = d.IDDonator), GETDATE()) > 12 
+                        THEN 2
+                        ELSE 0
+                    END as ScorRisc
+                
+                FROM Donatori d
+            
+                WHERE 
+                    -- Conditii pentru risc ridicat
+                    (
+                        d.EsteEligibil = 0 
+                        OR EXISTS (SELECT 1 FROM DonatoriBoli db WHERE db.IDDonator = d.IDDonator)
+                        OR EXISTS (SELECT 1 FROM RezultateAnalize ra WHERE ra.IDDonator = d.IDDonator AND ra.EsteInLimitaNormala = 0)
+                        OR DATEDIFF(MONTH, 
+                             ISNULL((SELECT MAX(DataDonatie) FROM Donatii dn WHERE dn.IDDonator = d.IDDonator), '1900-01-01'), 
+                             GETDATE()) > 12
+                    )
+                
+                ORDER BY ScorRisc DESC, NrBoli DESC, NrAnalizeAnormale DESC
+            
+            """, conn)
         
-        ttk.Button(button_frame, text="Cauta", command=perform_search).pack(side=tk.LEFT, padx=10)
-        ttk.Button(button_frame, text="Anuleaza", command=window.destroy).pack(side=tk.LEFT, padx=10)
+            self.show_report_window("Donatori cu Risc Ridicat", df)
+        except Exception as e:
+            messagebox.showerror("Eroare", f"Eroare la generare raport:\n{str(e)}")
+        finally:
+            conn.close()
     
     def show_report_window(self, title, dataframe):
         """Afiseaza un raport intr-o fereastra separata."""
