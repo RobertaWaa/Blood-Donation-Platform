@@ -1,4 +1,4 @@
-# Platformă de Donare Sânge - Proiect Sisteme de Baze de Date
+# Platformă de Donare Sânge
 
 ## Descriere Proiect
 Aplicație pentru gestionarea donatorilor, programărilor, analizelor medicale și stocurilor de sânge într-un centru de transfuzii. Proiectul implementează o bază de date relațională completă cu interfață vizuală în Python.
@@ -23,7 +23,7 @@ Aplicație pentru gestionarea donatorilor, programărilor, analizelor medicale �
 6. **Programari** - programări pentru donare
 7. **Donatii** - istoric donații
 8. **StocSange** - stoc curent pe grupe sanguine
-9. **Utilizatori** - medici și administratori (opțional)
+9. **Utilizatori** - medici și administratori 
 
 ### Relații
 - **2 relații 1:N**: Donatori → RezultateAnalize, Donatori → Programări
@@ -46,6 +46,7 @@ Aplicație pentru gestionarea donatorilor, programărilor, analizelor medicale �
 ### 1. Instalare Dependințe
 ```bash
 pip install pyodbc pandas
+pip install tkcalendar
 ```
 
 ### 2. Configurare Baza de Date
